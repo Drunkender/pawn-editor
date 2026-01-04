@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-  <name>Pawn Editor</name>
+  <name>Pawn Editor - Edited</name>
   <author>ISOREX, legodude17, Taranchuk, TreadTheDawnGames, mycroftjr, Inglix, fofajardo</author>
   <supportedVersions>
     <li>1.5</li>
     <li>1.6</li>
   </supportedVersions>
-  <packageId>ISOREX.PawnEditor</packageId>
+  <packageId>ISOREX.PawnEditor.Edited</packageId>
   <modVersion>1.2.0</modVersion>
   <modDependencies>
     <li>

@@ -16,16 +16,20 @@ public class TabGroupDef : Def
 
     public TabGroupDef()
     {
-        label ??= defName;
-        description ??= label;
     }
 
     public override void ResolveReferences()
     {
         base.ResolveReferences();
+        if (label.NullOrEmpty())
+            label = defName;
+        if (description.NullOrEmpty())
+            description = label;
+
         tabs ??= new();
+        var existing = new HashSet<TabDef>(tabs);
         foreach (var def in DefDatabase<TabDef>.AllDefs)
-            if (def.tabGroup == this)
+            if (def.tabGroup == this && existing.Add(def))
                 tabs.Add(def);
 
         foreach (var def in tabs) def.tabGroup = this;
@@ -110,6 +114,10 @@ public class TabDef : Def
     public override void PostLoad()
     {
         base.PostLoad();
+        if (label.NullOrEmpty())
+            label = defName;
+        if (description.NullOrEmpty())
+            description = label;
         LongEventHandler.ExecuteWhenFinished(Initialize);
     }
 
@@ -185,8 +193,8 @@ public class WidgetDef : Def
 
     public float GetWidth(Pawn pawn) => getWidth?.Invoke(pawn) ?? defaultWidth;
     public float GetWidth(Faction faction) => getWidth?.Invoke(faction) ?? defaultWidth;
-    public float GetHeight(Pawn pawn) => getHeight?.Invoke(pawn) ?? defaultWidth;
-    public float GetHeight(Faction faction) => getHeight?.Invoke(faction) ?? defaultWidth;
+    public float GetHeight(Pawn pawn) => getHeight?.Invoke(pawn) ?? defaultHeight;
+    public float GetHeight(Faction faction) => getHeight?.Invoke(faction) ?? defaultHeight;
     public bool ShowOn(Pawn pawn) => showOn?.Invoke(pawn) ?? true;
     public bool ShowOn(Faction faction) => showOn?.Invoke(faction) ?? true;
 
@@ -203,6 +211,10 @@ public class WidgetDef : Def
     public override void PostLoad()
     {
         base.PostLoad();
+        if (label.NullOrEmpty())
+            label = defName;
+        if (description.NullOrEmpty())
+            description = label;
         if (workerClass != null)
         {
             worker = AccessTools.CreateInstance(workerClass);

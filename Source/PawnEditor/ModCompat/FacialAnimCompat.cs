@@ -19,8 +19,18 @@ public static class FacialAnimCompat
     [UsedImplicitly]
     public static void Activate()
     {
-        faceTypeDef = AccessTools.TypeByName("FacialAnimation.FaceTypeDef");
-        FaceTypeDefs = GenDefDatabase.GetAllDefsInDatabaseForDef(faceTypeDef).ToList();
+        try
+        {
+            faceTypeDef = AccessTools.TypeByName("FacialAnimation.FaceTypeDef");
+            if (faceTypeDef == null) return;
+            FaceTypeDefs = GenDefDatabase.GetAllDefsInDatabaseForDef(faceTypeDef).ToList();
+            Active = true;
+        }
+        catch (Exception e)
+        {
+            Log.WarningOnce($"[Pawn Editor] Facial Animations compatibility failed to activate: {e}", 1963432430);
+            Active = false;
+        }
         
         /*foreach (var typeDef in FaceTypeDefs)
         {

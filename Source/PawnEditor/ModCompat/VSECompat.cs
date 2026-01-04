@@ -31,41 +31,83 @@ public static class VSECompat
     
     public static void Activate()
     {
-        passionManager = AccessTools.TypeByName("VSE.Passions.PassionManager");
-        passionToDef = AccessTools.Method(passionManager, "PassionToDef").CreateDelegate<Func<Passion, object>>();
-        passionDefArray = AccessTools.Field(passionManager, "Passions");
+        try
+        {
+            passionManager = AccessTools.TypeByName("VSE.Passions.PassionManager");
+            if (passionManager == null) return;
+            var passionToDefMi = AccessTools.Method(passionManager, "PassionToDef");
+            passionDefArray = AccessTools.Field(passionManager, "Passions");
+            if (passionToDefMi == null || passionDefArray == null) return;
+            passionToDef = passionToDefMi.CreateDelegate<Func<Passion, object>>();
 
-        passionUtilities = AccessTools.TypeByName("VSE.Passions.PassionUtilities");
-        changePassion = AccessTools.Method(passionUtilities, "ChangePassion").CreateDelegate<Func<Passion, int, Passion>>();
+            passionUtilities = AccessTools.TypeByName("VSE.Passions.PassionUtilities");
+            if (passionUtilities == null) return;
+            var changePassionMi = AccessTools.Method(passionUtilities, "ChangePassion");
+            if (changePassionMi == null) return;
+            changePassion = changePassionMi.CreateDelegate<Func<Passion, int, Passion>>();
 
-        learnRateFactorCache = AccessTools.TypeByName("VSE.Passions.LearnRateFactorCache");
-        clearCacheFor = AccessTools.Method(learnRateFactorCache, "ClearCacheFor").CreateDelegate<Action<SkillRecord, Passion?>>();
+            learnRateFactorCache = AccessTools.TypeByName("VSE.Passions.LearnRateFactorCache");
+            if (learnRateFactorCache == null) return;
+            var clearCacheForMi = AccessTools.Method(learnRateFactorCache, "ClearCacheFor");
+            if (clearCacheForMi == null) return;
+            clearCacheFor = clearCacheForMi.CreateDelegate<Action<SkillRecord, Passion?>>();
 
-        passionDefType = AccessTools.TypeByName("VSE.Passions.PassionDef");
-        iconProperty = AccessTools.Property(passionDefType, "Icon");
-        labelField = AccessTools.Field(passionDefType, "label");
-        indexField = AccessTools.Field(passionDefType, "index");
+            passionDefType = AccessTools.TypeByName("VSE.Passions.PassionDef");
+            if (passionDefType == null) return;
+            iconProperty = AccessTools.Property(passionDefType, "Icon");
+            labelField = AccessTools.Field(passionDefType, "label");
+            indexField = AccessTools.Field(passionDefType, "index");
+            if (iconProperty == null || labelField == null || indexField == null) return;
+
+            Active = true;
+        }
+        catch (Exception e)
+        {
+            Log.WarningOnce($"[Pawn Editor] VSE compatibility failed to activate: {e}", 1963432420);
+            Active = false;
+        }
     }
 
     public static Texture2D GetPassionIcon(Passion passion)
     {
-        var passionDef = passionToDef(passion);
-        var icon = (Texture2D)iconProperty.GetValue(passionDef);
-        return icon;
+        if (!Active || passionToDef == null || iconProperty == null) return null;
+        try
+        {
+            var passionDef = passionToDef(passion);
+            return (Texture2D)iconProperty.GetValue(passionDef);
+        }
+        catch (Exception e)
+        {
+            Log.WarningOnce($"[Pawn Editor] VSE GetPassionIcon failed: {e}", 1963432421);
+            return null;
+        }
     }
 
-    public static Passion ChangePassion(Passion passion) => changePassion(passion, 1);
-    public static void ClearCacheFor(SkillRecord sr, Passion passion) => clearCacheFor(sr, passion);
+    public static Passion ChangePassion(Passion passion) => !Active || changePassion == null ? passion : changePassion(passion, 1);
+    public static void ClearCacheFor(SkillRecord sr, Passion passion)
+    {
+        if (!Active || clearCacheFor == null) return;
+        clearCacheFor(sr, passion);
+    }
 
     public static void AddPassionPresets(List<FloatMenuOption> floatMenuOptions, Pawn pawn)
     {
-        var passionDefs = passionDefArray.GetValue(null) as Array;
-        foreach (var passionDef in passionDefs)
+        if (!Active || floatMenuOptions == null || passionDefArray == null || labelField == null || indexField == null) return;
+        try
         {
-            var label = (string)labelField.GetValue(passionDef);
-            var index = (ushort)indexField.GetValue(passionDef);
-            floatMenuOptions.Add(new("PawnEditor.SetAllTo".Translate("PawnEditor.Passions".Translate(), label),
-                TabWorker_Bio_Humanlike.GetSetDelegate(pawn, true, index)));
+            var passionDefs = passionDefArray.GetValue(null) as Array;
+            if (passionDefs == null) return;
+            foreach (var passionDef in passionDefs)
+            {
+                var label = (string)labelField.GetValue(passionDef);
+                var index = (ushort)indexField.GetValue(passionDef);
+                floatMenuOptions.Add(new("PawnEditor.SetAllTo".Translate("PawnEditor.Passions".Translate(), label),
+                    TabWorker_Bio_Humanlike.GetSetDelegate(pawn, true, index)));
+            }
+        }
+        catch (Exception e)
+        {
+            Log.WarningOnce($"[Pawn Editor] VSE AddPassionPresets failed: {e}", 1963432422);
         }
     }
 }

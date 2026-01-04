@@ -40,7 +40,10 @@ public static partial class SaveLoadUtility
             var typeName = xmlNode?.Attributes?["Class"]?.Value;
             var data = xmlNode?.InnerText;
             
-            if (data.NullOrEmpty()) refee = null;
+            if (data.NullOrEmpty())
+            {
+                refee = null;
+            }
 
             //loads a random faction for the pawn if the pawn's faction is set to "Random"
             else if(typeName == "Faction")
@@ -57,7 +60,7 @@ public static partial class SaveLoadUtility
                 else
                 {
                     var type = typeName.NullOrEmpty() ? null : GenTypes.GetTypeInAnyAssembly(typeName);
-                    loadInfo.Add((Scribe.loader.curParent, Scribe.loader.curPathRelToParent + '/' + label), (data, type));
+                    loadInfo[(Scribe.loader.curParent, Scribe.loader.curPathRelToParent + '/' + label)] = (data, type);
                     if (type == null) return true;
                     refee = LoadReferenceData(data, type);
                 }
@@ -65,7 +68,7 @@ public static partial class SaveLoadUtility
             else
             {
                 var type = typeName.NullOrEmpty() ? null : GenTypes.GetTypeInAnyAssembly(typeName);
-                loadInfo.Add((Scribe.loader.curParent, Scribe.loader.curPathRelToParent + '/' + label), (data, type));
+                loadInfo[(Scribe.loader.curParent, Scribe.loader.curPathRelToParent + '/' + label)] = (data, type);
                 if (type == null) return true;
                 refee = LoadReferenceData(data, type);
             }
@@ -130,7 +133,7 @@ public static partial class SaveLoadUtility
 
                     Log.Warning(
                         $"[PawnEditor] Found reference to {GenTypes.GetTypeNameWithoutIgnoredNamespaces(refee.GetType())}, which will be ignored. This shouldn't cause issues on load.");
-                    return null;
+                    return "";
                 default:
                     Log.Error($"Unhandled saving item {refee} with type {refee.GetType()}");
                     break;
@@ -145,6 +148,7 @@ public static partial class SaveLoadUtility
     {
         try
         {
+            if (data.NullOrEmpty() || type == null) return null;
             if (data == "__CURRENT") return currentItem;
             if (data == "__CURRENTPAWN") return currentPawn;
             if (data == "__CURRENTMAPPARENT") return Find.CurrentMap.Parent;
@@ -171,11 +175,12 @@ public static partial class SaveLoadUtility
             {
                 if (data == "__PlayerFaction") return Faction.OfPlayer;
                 var arr = data.Split('.');
-                var def = DefDatabase<FactionDef>.GetNamed(arr[0]);
+                if (arr.Length < 2) return null;
+                var def = DefDatabase<FactionDef>.GetNamedSilentFail(arr[0]);
                 if (def != null)
                 {
                     var list = Find.FactionManager.AllFactions.Where(f => f.def == def).ToList();
-                    var ind = int.Parse(arr[1]);
+                    if (!int.TryParse(arr[1], out var ind)) return list.FirstOrDefault();
                     if (ind < 0 || ind >= list.Count) return list.FirstOrDefault();
                     return list[ind];
                 }
@@ -199,7 +204,9 @@ public static partial class SaveLoadUtility
             if (typeof(Precept).IsAssignableFrom(type))
             {
                 var arr = data.Split('.');
+                if (arr.Length < 2) return null;
                 var ideo = (Ideo)LoadReferenceData(arr[0], typeof(Ideo));
+                if (ideo == null) return null;
                 foreach (var precept in ideo.precepts)
                     if (precept.name == arr[1])
                         return precept;
@@ -208,9 +215,10 @@ public static partial class SaveLoadUtility
             if (typeof(Thing).IsAssignableFrom(type))
             {
                 var arr = data.Split('.');
+                if (arr.Length < 3) return null;
                 var def = DefDatabase<ThingDef>.GetNamed(arr[0]);
                 var stuff = arr[1].NullOrEmpty() ? null : DefDatabase<ThingDef>.GetNamedSilentFail(arr[1]);
-                var count = int.Parse(arr[2]);
+                if (!int.TryParse(arr[2], out var count)) count = 1;
                 foreach (var obj in Scribe.loader.crossRefs.loadedObjectDirectory.allObjectsByLoadID.Values)
                     if (obj is Thing thing && thing.def == def && thing.Stuff == stuff && thing.stackCount == count)
                         return thing;
@@ -223,10 +231,13 @@ public static partial class SaveLoadUtility
             if (typeof(Job) == type)
             {
                 var arr1 = data.Split(':');
+                if (arr1.Length < 2) return null;
                 var arr2 = arr1[1].Split('.');
+                if (arr2.Length < 2) return null;
                 var arr3 = arr2[0].Split(',');
+                if (arr3.Length < 3) return null;
                 var job = JobMaker.MakeJob(DefDatabase<JobDef>.GetNamed(arr1[0]));
-                job.count = int.Parse(arr2[1]);
+                if (int.TryParse(arr2[1], out var jobCount)) job.count = jobCount;
                 job.targetA = LocalTargetInfoFromString(arr3[0]);
                 job.targetB = LocalTargetInfoFromString(arr3[1]);
                 job.targetC = LocalTargetInfoFromString(arr3[2]);

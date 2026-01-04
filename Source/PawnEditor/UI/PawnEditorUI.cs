@@ -154,7 +154,8 @@ public static partial class PawnEditor
                 lastRandomization = option;
                 Notify_PointsUsed();
                 List<Faction> factions = Find.FactionManager.AllFactionsVisibleInViewOrder.ToList();
-                var chosenFaction = factions[Rand.Range(0, factions.Count - 1)];
+                if (factions.Count == 0) return;
+                var chosenFaction = factions.RandomElement();
                 selectedFaction = chosenFaction;
                 if (chosenFaction != selectedPawn.Faction) selectedPawn.SetFaction(chosenFaction);
                 DoRecache();
@@ -168,7 +169,8 @@ public static partial class PawnEditor
                 options.Add(new FloatMenuOption("PawnEditor.SelectRandomFaction".Translate(), () =>
                 {
                     List<Faction> factions = Find.FactionManager.AllFactionsVisibleInViewOrder.ToList();
-                    var chosenFaction = factions[Rand.Range(0, factions.Count - 1)];
+                    if (factions.Count == 0) return;
+                    var chosenFaction = factions.RandomElement();
                     selectedFaction = chosenFaction;
                     if (chosenFaction != selectedPawn.Faction) selectedPawn.SetFaction(chosenFaction);
                     DoRecache();
@@ -179,8 +181,12 @@ public static partial class PawnEditor
         if (lastRandomization != null && Widgets.ButtonImageWithBG(randomRect.TakeRightPart(20), TexUI.RotRightTex, new Vector2(12, 12)))
         {
             var label = lastRandomization.Label.ToLower();
-            lastRandomization = options.First(op => op.Label.Contains(label));
-            lastRandomization.action();
+            var match = options.FirstOrDefault(op => op.Label.ToLower().Contains(label));
+            if (match != null)
+            {
+                lastRandomization = match;
+                lastRandomization.action();
+            }
             randomRect.TakeRightPart(1);
         }
 
@@ -190,7 +196,7 @@ public static partial class PawnEditor
             {
                 Find.WindowStack.Add(new FloatMenu(options));
             }
-  
+
         buttonRect.x -= 5 + buttonRect.width;
 
         if (Widgets.ButtonText(buttonRect, "Save".Translate()))
@@ -469,13 +475,17 @@ public static partial class PawnEditor
     public static void SavePawnTex(Pawn pawn, string path, Rot4 dir)
     {
         var tex = GetPawnTex(pawn, new(128, 128), dir);
+        var prev = RenderTexture.active;
         RenderTexture.active = tex;
-        var tex2D = new Texture2D(tex.width, tex.width);
+        var tex2D = new Texture2D(tex.width, tex.height);
         tex2D.ReadPixels(new(0, 0, tex.width, tex.height), 0, 0);
-        RenderTexture.active = null;
+        RenderTexture.active = prev;
         tex2D.Apply(true, false);
         var bytes = tex2D.EncodeToPNG();
+        var directory = Path.GetDirectoryName(path);
+        if (!directory.NullOrEmpty()) Directory.CreateDirectory(directory);
         File.WriteAllBytes(path, bytes);
+        UnityEngine.Object.Destroy(tex2D);
     }
 
     public static void DrawPawnPortrait(Rect rect)
